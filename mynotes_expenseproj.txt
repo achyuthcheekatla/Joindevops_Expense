@@ -1,0 +1,322 @@
+dnf install mysql-server -y
+systemctl enable mysqld
+systemctl status mysqld
+systemctl start mysqld
+
+[ root@ip-172-31-37-152 ~ ]# systemctl status mysqld
+● mysqld.service - MySQL 8.0 database server
+     Loaded: loaded (/usr/lib/systemd/system/mysqld.service; enabled; preset: disabled)
+     Active: active (running) since Wed 2026-10-07 13:11:21 UTC; 13s ago
+    Process: 3344 ExecStartPre=/usr/libexec/mysql-check-socket (code=exited, status=0/SUCCESS)
+    Process: 3366 ExecStartPre=/usr/libexec/mysql-prepare-db-dir mysqld.service (code=exited, status=0/SUCCESS)
+   Main PID: 3476 (mysqld)
+     Status: "Server is operational"
+      Tasks: 38 (limit: 3989)
+     Memory: 411.7M (peak: 425.3M)
+        CPU: 3.203s
+     CGroup: /system.slice/mysqld.service
+             └─3476 /usr/libexec/mysqld --basedir=/usr
+
+
+mysql_secure_installation --set-root-pass ExpenseApp@1
+
+mysql -u root -pExpenseApp@1
+
+[ root@ip-172-31-37-152 ~ ]# mysql -u root -pExpenseApp@1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
+----------------------------------------------------------------------
+mysql -h 172.31.37.152 -u root -pExpenseApp@1
+mysql -h <MYSQL-SERVER-IPADDRESS> -u root -pExpenseApp@1
+
+SHOW DATABASES;
+
+
+CREATE DATABASE IF NOT EXISTS transactions;
+USE transactions;
+
+CREATE TABLE IF NOT EXISTS transactions (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    amount      INT NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    category    VARCHAR(50) NOT NULL
+);
+
+CREATE USER IF NOT EXISTS 'expense'@'%' IDENTIFIED BY 'ExpenseApp@1';
+GRANT ALL ON transactions.* TO 'expense'@'%';
+FLUSH PRIVILEGES;
+
+USE transactions; SHOW TABLES;
+DESCRIBE transactions;
+	
+Empty set (0.05 sec)
+
+--- All Good ---
+
+-------Banckend--------
+
+a.create sg backend
+b.create an instance for backend
+
+c.create a dir and download the code.
+
+d.installing nodejs
+
+dnf module disable nodejs -y
+dnf module enable nodejs:24 -y
+dnf install nodejs -y
+
+node -v
+inside root folder --> app subfolder
+mkdir /app
+
+useradd --system --home /app --shell /sbin/nologin --comment "expense system user" expense
+
+id expense
+grep expense /etc/passwd
+
+currently i am at root folder in root user
+/root
+
+
+curl -o backend.tar.gz https://raw.githubusercontent.com/daws-92s/expense-documentation/refs/heads/main/artifacts/expense-backend-v5.tar.gz
+
+cd /app 
+ ~/app ]# tar -xzf backend.tar.gz
+ 
+ 
+[ root@ip-172-31-45-182 ~/app ]# ls -la
+total 40
+drwxr-xr-x  3 root root   126 Sep 30 13:48 .
+dr-xr-x---. 6 root root  4096 Oct  7 14:43 ..
+-rw-r--r--  1 root root   155 Sep 30 13:48 DbConfig.js
+-rw-r--r--  1 root root  2287 Sep 30 13:47 TransactionService.js
+-rw-r--r--  1 root root  4754 Oct  7 14:28 backend.tar.gz
+-rw-r--r--  1 root root 12915 Sep 30 13:48 index.js
+-rw-r--r--  1 root root   452 Sep 30 13:48 package.json
+drwxr-xr-x  2 root root    25 Sep 30 13:48 schema
+
+npm install
+
+backend.service creation
+
+cd /etc/systemd/system/
+
+vim backend.service
+
+chmod 755 backend.service
+
+create a backend.service file 
+-------------------------
+[Unit]
+Description=Expense Backend Service
+After=network.target
+
+[Service]
+User=expense
+Environment=DB_HOST=172.31.41.138 
+Environment=DB_USER=expense
+Environment=DB_PWD=ExpenseApp@1
+Environment=DB_DATABASE=transactions
+Environment=ADMIN_TOKEN=admin123
+ExecStart=/bin/node /app/index.js
+SyslogIdentifier=backend
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
+---------------------
+below cmds shud be under the app folder
+/app 
+dnf install mysql -y
+
+
+systemctl daemon-reload
+systemctl enable backend
+systemctl start backend
+
+to check the logs
+journalctl -u backend -f
+
+curl http://localhost:8080/health
+{"status":"ok","db":"up"}
+
+-------Frontend--------
+create the sg for frontend 
+ssh 22 0.0.0.0/0
+TCP 80 
+
+dnf install nginx -y
+
+systemctl enable nginx
+systemctl start nginx
+systemctl status nginx ---> running
+
+
+/usr/share/nginx/html/* ---> index.html
+
+default configuration file in nginx
+etc/nginx/nginx.conf
+
+here we can change the default port 
+ root@ip-172-31-44-139 /var/log/nginx ]# cat access.log
+
+49.205.227.227 - - [07/Oct/2026:18:13:21 +0000] "GET / HTTP/1.1" 200 5909 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36" "-"
+49.205.227.227 - - [07/Oct/2026:18:13:21 +0000] "GET /icons/poweredby.png HTTP/1.1" 200 2126 "http://52.90.72.147/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36" "-"
+49.205.227.227 - - [07/Oct/2026:18:13:21 +0000] "GET /system_noindex_logo.png HTTP/1.1" 200 2478 "http://52.90.72.147/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36" "-"
+49.205.227.227 - - [07/Oct/2026:18:13:21 +0000] "GET /poweredby.png HTTP/1.1" 200 368 "http://52.90.72.147/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36" "-"
+49.205.227.227 - - [07/Oct/2026:18:13:22 +0000] "GET /favicon.ico HTTP/1.1" 404 3971 "http://52.90.72.147/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36" "-"
+
+
+rm -rf /usr/share/nginx/html/*
+
+curl -o /tmp/frontend.tar.gz https://raw.githubusercontent.com/daws-92s/expense-documentation/refs/heads/main/artifacts/expense-frontend-v5.tar.gz
+
+cd /usr/share/nginx/html
+tar -xzf /tmp/frontend.tar.gz
+
+
+configuring Reverse Proxy
+
+vim /etc/nginx/default.d/expense.conf
+172.31.45.182
+
+proxy_http_version 1.1;
+proxy_set_header Host              $host;
+proxy_set_header X-Real-IP         $remote_addr;
+proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_connect_timeout 5s;
+proxy_read_timeout    30s;   # 504 if the backend takes longer than this
+
+# Browser calls /api/transaction → nginx strips /api → backend gets /transaction
+location /api/ {
+    proxy_pass http://172.31.45.182:8080/;
+}
+
+location /health {
+    stub_status on;
+    access_log off;
+}
+
+# ── HTTP status code demos at the web-server layer ──────────────────────────
+# 301 — page moved permanently
+location = /home {
+    return 301 /;
+}
+
+# 302 — temporary redirect to an external page
+location = /docs {
+    return 302 https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status;
+}
+
+# 403 — nobody is allowed here
+location /admin {
+    deny all;
+}
+
+
+----------
+nginx -t
+
+systemctl restart nginx
+
+curl http://localhost/api/health
+
+HTTP Status Codes
+--------------------------------------------------
+
+Session-10 --->02.0ct.2026---> 08.10.2026
+
+Domain purchased
+
+https://achsam.online
+
+Nameservers
+===========
+lunar.dns-parking.com
+solar.dns-parking.com
+
+
+nslookup achsam.online
+
+Domain transfer to AWS Nameservers 
+============================
+Route53 ---> Hosted Zone--> Nameservers update in the Hostinguer server/website with below ns
+
+ns-1918.awsdns-47.co.uk.
+ns-517.awsdns-00.net.
+ns-379.awsdns-47.com.
+ns-1067.awsdns-05.org.
+
+Route53 Type-A records created
+Route53 ---> Hosted Zone-->achsam.online-->create
+mysqldb.achsam.online --> dbprivateIp
+backend.achsam.online --> backendprivateIp
+frontend.achsam.online--> frontendpublicIp
+frontend2.achsam.online--> frontendpublicIp
+myloadbalncer.achsam.online --> lbpubliceIp
+
+map frontend dns to lb in the lb.conf file
+
+---------------------lb.conf---------------------------------------------------
+# For more information on configuration, see:
+#   * Official English Documentation: http://nginx.org/en/docs/
+#   * Official Russian Documentation: http://nginx.org/ru/docs/
+
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx.pid;
+
+include /usr/share/nginx/modules/*.conf;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile            on;
+    tcp_nopush          on;
+    tcp_nodelay         on;
+    keepalive_timeout   65;
+    types_hash_max_size 4096;
+
+    include             /etc/nginx/mime.types;
+    default_type        application/octet-stream;
+
+    include /etc/nginx/conf.d/*.conf;
+
+    # 502 demo: stop nginx on the frontend EC2 → LB cannot reach upstream → 502
+    # 504 demo: proxy_read_timeout fires before frontend responds → 504
+    upstream my_frontend_cluster {
+        server frontend.achsam.online:80;
+		server frontend2.achsam.online:80;
+    }
+
+    server {
+        listen       80;
+        listen       [::]:80;
+        server_name  _;
+
+        # 503 demo: uncomment the line below and run: systemctl reload nginx
+        # return 503 "Service temporarily unavailable";
+
+        location / {
+            proxy_pass            http://my_frontend_cluster;
+            proxy_set_header      Host              $host;
+            proxy_set_header      X-Real-IP         $remote_addr;
+            proxy_set_header      X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_connect_timeout 5s;
+            proxy_read_timeout    10s;
+        }
+    }
+}
